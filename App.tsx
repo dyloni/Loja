@@ -1,133 +1,105 @@
-
-import React, { useState, useEffect } from 'react';
-import type { Listing, Filters } from './types';
-import { mockListings } from './constants';
+import React, { useState } from 'react';
+import { listings as initialListings, users } from './constants';
+import type { Listing, User } from './types';
 import Header from './components/Header';
 import SearchBar from './components/SearchBar';
 import ListingGrid from './components/ListingGrid';
 import ListingDetail from './components/ListingDetail';
-import SkeletonLoader from './components/SkeletonLoader';
-import MapToggleButton from './components/MapToggleButton';
-import Map from './components/Map';
 import BottomNav from './components/BottomNav';
+import Map from './components/Map';
+import MapToggleButton from './components/MapToggleButton';
 import ProfilePage from './components/ProfilePage';
+import WishlistPage from './components/WishlistPage';
+import ViewingRequestsPage from './components/ViewingRequestsPage';
+import ManageListingsPage from './components/ManageListingsPage';
+
+type Page = 'home' | 'wishlist' | 'requests' | 'profile' | 'manage';
 
 const App: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
+  const [listings, setListings] = useState<Listing[]>(initialListings);
+  const [filteredListings, setFilteredListings] = useState<Listing[]>(initialListings);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [showMap, setShowMap] = useState(false);
-  const [activeTab, setActiveTab] = useState('explore');
+  const [activePage, setActivePage] = useState<Page>('home');
+  
+  // Example user, can be switched between tenant and landlord
+  const [currentUser, setCurrentUser] = useState<User>(users.tenant);
 
-  // New state for search and filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<Filters>({
-    propertyTypes: [],
-    bedrooms: null,
-    minPrice: null,
-    maxPrice: null,
-  });
-
-  // Effect to load initial data
-  useEffect(() => {
-    setTimeout(() => {
-      setListings(mockListings);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  // Effect to apply filters and search
-  useEffect(() => {
-    if (listings.length === 0) return;
-
-    let results = [...listings];
-
-    // 1. Filter by search term
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      results = results.filter(listing =>
-        listing.title.toLowerCase().includes(lowercasedTerm) ||
-        listing.address.city.toLowerCase().includes(lowercasedTerm)
-      );
-    }
-
-    // 2. Filter by property type
-    if (filters.propertyTypes.length > 0) {
-      results = results.filter(listing => filters.propertyTypes.includes(listing.propertyType));
-    }
-
-    // 3. Filter by bedrooms
-    if (filters.bedrooms !== null) {
-      if (filters.bedrooms >= 5) { // "5+" case
-          results = results.filter(listing => listing.bedrooms >= 5);
-      } else {
-          results = results.filter(listing => listing.bedrooms === filters.bedrooms);
-      }
-    }
-
-    // 4. Filter by price
-    if (filters.minPrice !== null && filters.minPrice > 0) {
-      results = results.filter(listing => listing.pricePerMonth >= filters.minPrice!);
-    }
-    if (filters.maxPrice !== null && filters.maxPrice > 0) {
-      results = results.filter(listing => listing.pricePerMonth <= filters.maxPrice!);
-    }
-
+  const handleSearch = (searchTerm: string) => {
+    const lowercasedTerm = searchTerm.toLowerCase();
+    const results = listings.filter(listing =>
+      listing.title.toLowerCase().includes(lowercasedTerm) ||
+      listing.address.city.toLowerCase().includes(lowercasedTerm)
+    );
     setFilteredListings(results);
-  }, [searchTerm, filters, listings]);
+  };
 
   const handleSelectListing = (listing: Listing) => {
     setSelectedListing(listing);
   };
 
-  const handleBackToListings = () => {
+  const handleCloseDetail = () => {
     setSelectedListing(null);
   };
 
-  const renderContent = () => {
-    if (activeTab !== 'explore') {
-      // For now, only profile page is different. Other tabs can show placeholders.
-      if (activeTab === 'profile') {
-        return <ProfilePage />;
+  const handleToggleWishlist = (listingId: string) => {
+    setWishlistedIds(prevIds => {
+      const newIds = new Set(prevIds);
+      if (newIds.has(listingId)) {
+        newIds.delete(listingId);
+      } else {
+        newIds.add(listingId);
       }
-      return <div className="p-4 pt-10 text-center"><h1 className="text-2xl font-bold">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1><p className="text-gray-600 mt-2">This feature is not yet implemented.</p></div>;
-    }
-
-    if (selectedListing) {
-      return <ListingDetail listing={selectedListing} onBack={handleBackToListings} />;
-    }
-
-    if (isLoading) {
-      return <SkeletonLoader />;
-    }
-
-    if (showMap) {
-      return <Map listings={filteredListings} onSelectListing={handleSelectListing} />;
-    }
-
-    return <ListingGrid listings={filteredListings} onSelectListing={handleSelectListing} />;
+      return newIds;
+    });
   };
 
+  const wishlistedListings = listings.filter(listing => wishlistedIds.has(listing.id));
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'home':
+        return (
+          <>
+            <SearchBar onSearch={handleSearch} />
+            <div className="px-4 pb-24">
+              {showMap ? (
+                <Map listings={filteredListings} onSelectListing={handleSelectListing} />
+              ) : (
+                <ListingGrid
+                  listings={filteredListings}
+                  onSelectListing={handleSelectListing}
+                  wishlistedIds={wishlistedIds}
+                  onToggleWishlist={handleToggleWishlist}
+                />
+              )}
+            </div>
+            <MapToggleButton showMap={showMap} setShowMap={setShowMap} />
+          </>
+        );
+      case 'wishlist':
+        return <WishlistPage listings={wishlistedListings} onSelectListing={handleSelectListing} onToggleWishlist={handleToggleWishlist} />;
+      case 'requests':
+        return <ViewingRequestsPage />;
+      case 'manage':
+        return <ManageListingsPage />;
+      case 'profile':
+        return <ProfilePage user={currentUser} onSwitchUser={() => setCurrentUser(currentUser.role === 'tenant' ? users.landlord : users.tenant)} />;
+      default:
+        return null;
+    }
+  }
+
   return (
-    <div className="max-w-lg mx-auto bg-gray-50 min-h-screen font-sans">
+    <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
-      <main className="p-4 pb-20">
-        {activeTab === 'explore' && !selectedListing && (
-          <SearchBar
-            onSearchTermChange={setSearchTerm}
-            onFiltersChange={setFilters}
-            activeFilters={filters}
-            activeSearchTerm={searchTerm}
-            filteredCount={filteredListings.length}
-          />
-        )}
-        {renderContent()}
+      <main className="pt-16">
+        {renderPage()}
       </main>
-      {activeTab === 'explore' && !selectedListing && (
-        <MapToggleButton showMap={showMap} setShowMap={setShowMap} />
-      )}
-      {!selectedListing && <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />}
+      {/* FIX: Pass a function to onToggleWishlist that calls handleToggleWishlist with the selected listing's ID. */}
+      {selectedListing && <ListingDetail listing={selectedListing} onClose={handleCloseDetail} onToggleWishlist={() => handleToggleWishlist(selectedListing.id)} isWishlisted={wishlistedIds.has(selectedListing.id)} />}
+      <BottomNav activePage={activePage} setActivePage={setActivePage} isLandlord={currentUser.role === 'landlord'}/>
     </div>
   );
 };

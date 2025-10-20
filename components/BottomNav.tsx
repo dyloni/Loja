@@ -1,46 +1,48 @@
-
 import React from 'react';
-import { SearchIcon, HeartIcon, ChatIcon, UserIcon } from './Icons';
+import { HomeIcon, HeartIcon, EnvelopeIcon, UserCircleIcon, DocumentDuplicateIcon } from './Icons';
+
+type Page = 'home' | 'wishlist' | 'requests' | 'profile' | 'manage';
 
 interface BottomNavProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  activePage: Page;
+  setActivePage: (page: Page) => void;
+  isLandlord: boolean;
 }
 
-const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; }> = ({ icon, label, isActive, onClick }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-1 w-16 text-xs transition-colors ${isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-800'}`}>
+const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+  <button onClick={onClick} className={`flex flex-col items-center justify-center w-full pt-2 pb-1 transition-colors ${isActive ? 'text-indigo-600' : 'text-gray-500 hover:text-indigo-500'}`}>
     {icon}
-    <span>{label}</span>
+    <span className="text-xs mt-1">{label}</span>
   </button>
 );
 
-const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, isLandlord }) => {
+  const tenantItems = [
+    { id: 'home', label: 'Explore', icon: <HomeIcon className="w-6 h-6" /> },
+    { id: 'wishlist', label: 'Wishlist', icon: <HeartIcon className="w-6 h-6" /> },
+    { id: 'requests', label: 'Requests', icon: <EnvelopeIcon className="w-6 h-6" /> },
+    { id: 'profile', label: 'Profile', icon: <UserCircleIcon className="w-6 h-6" /> },
+  ];
+  
+  const landlordItems = [
+    { id: 'manage', label: 'Listings', icon: <DocumentDuplicateIcon className="w-6 h-6" /> },
+    { id: 'requests', label: 'Requests', icon: <EnvelopeIcon className="w-6 h-6" /> },
+    { id: 'profile', label: 'Profile', icon: <UserCircleIcon className="w-6 h-6" /> },
+  ];
+
+  const navItems = isLandlord ? landlordItems : tenantItems;
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 max-w-lg mx-auto z-20">
-      <NavItem 
-        icon={<SearchIcon className="w-6 h-6" />}
-        label="Explore"
-        isActive={activeTab === 'explore'}
-        onClick={() => onTabChange('explore')}
-      />
-      <NavItem 
-        icon={<HeartIcon className="w-6 h-6" />}
-        label="Wishlists"
-        isActive={activeTab === 'wishlists'}
-        onClick={() => onTabChange('wishlists')}
-      />
-      <NavItem 
-        icon={<ChatIcon className="w-6 h-6" />}
-        label="Messages"
-        isActive={activeTab === 'messages'}
-        onClick={() => onTabChange('messages')}
-      />
-      <NavItem 
-        icon={<UserIcon className="w-6 h-6" />}
-        label="Profile"
-        isActive={activeTab === 'profile'}
-        onClick={() => onTabChange('profile')}
-      />
+    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.05)] z-20 h-16 flex justify-around">
+      {navItems.map(item => (
+        <NavItem 
+          key={item.id}
+          icon={item.icon}
+          label={item.label}
+          isActive={activePage === item.id}
+          onClick={() => setActivePage(item.id as Page)}
+        />
+      ))}
     </nav>
   );
 };
